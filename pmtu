@@ -16,6 +16,7 @@ while lo + 1 < hi:
             '-M', 'do',
             '-c', '1',
             '-w', '5',
+            '-n',
             '-s', str(mid),
             target
         ], stderr=subprocess.STDOUT)
