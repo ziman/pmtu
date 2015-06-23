@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 import sys
 import subprocess
 
@@ -14,18 +15,21 @@ while lo + 1 < hi:
         out = subprocess.check_output([
             '/usr/bin/ping',
             '-M', 'do',
-            '-c', '1',
-            '-w', '5',
+            '-c', '5',
+            '-w', '10',
             '-n',
             '-s', str(mid),
             target
-        ], stderr=subprocess.STDOUT)
+        ], stderr=subprocess.STDOUT).decode('utf8')
 
-        print('%d: OK' % mid)
+        match = re.search(r'(\d+)% packet loss', out)
+        packet_loss = float(match.group(1))
+
+        print('%d: %.1f %% packet loss' % (mid, packet_loss))
         lo = mid
 
     except subprocess.CalledProcessError:
-        print('%d: not ok' % mid)
+        print('%d: * * *' % mid)
         hi = mid
 
 print('>>> optimal MTU is %d + 28 = %d' % (lo, lo+28))
