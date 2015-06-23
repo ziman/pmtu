@@ -1,5 +1,30 @@
 #!/usr/bin/env python3
 
+import sys
 import subprocess
 
+lo = 0    # guaranteed to work
+hi = 1500 # first not working
+target = sys.argv[1]
 
+while lo + 1 < hi:
+    mid = (lo + hi) // 2
+    
+    try:
+        out = subprocess.check_output([
+            '/usr/bin/ping',
+            '-M', 'do',
+            '-c', '1',
+            '-w', '5',
+            '-s', str(mid),
+            target
+        ], stderr=subprocess.STDOUT)
+
+        print('%d: OK' % mid)
+        lo = mid
+
+    except subprocess.CalledProcessError:
+        print('%d: not ok' % mid)
+        hi = mid
+
+print('>>> optimal MTU is %d + 28 = %d' % (lo, lo+28))
