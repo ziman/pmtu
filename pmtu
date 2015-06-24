@@ -1,36 +1,57 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import re
 import sys
 import subprocess
+import argparse
 
-lo = 0    # guaranteed to work
-hi = 1500 # first not working
-target = sys.argv[1]
+def main(args):
+    lo = args.lo  # MTUs lower or equal do work
+    hi = args.hi  # MTUs greater or equal don't work
 
-while lo + 1 < hi:
-    mid = (lo + hi) // 2
-    
-    try:
-        out = subprocess.check_output([
-            '/usr/bin/ping',
-            '-M', 'do',
-            '-c', '5',
-            '-w', '10',
-            '-i', '0.2',
-            '-n',
-            '-s', str(mid),
-            target,
-        ], stderr=subprocess.STDOUT).decode('utf8')
+    while lo + 1 < hi:
+        mid = (lo + hi) // 2
+        
+        try:
+            out = subprocess.check_output([
+                '/usr/bin/ping',
+                '-M', 'do',
+                '-c', str(args.pings_per_step),
+                '-w', str(args.step_timeout_sec),
+                '-i', str(args.ping_interval_sec),
+                '-n',
+                '-s', str(mid),
+                args.target,
+            ], stderr=subprocess.STDOUT).decode('utf8')
 
-        match = re.search(r'(\d+)% packet loss', out)
-        packet_loss = float(match.group(1))
+            match = re.search(r'(\d+)% packet loss', out)
+            packet_loss = float(match.group(1))
 
-        print('%d: %.1f %% packet loss' % (mid, packet_loss))
-        lo = mid
+            print('%d: %.1f %% packet loss' % (mid, packet_loss))
+            lo = mid
 
-    except subprocess.CalledProcessError:
-        print('%d: * * *' % mid)
-        hi = mid
+        except subprocess.CalledProcessError:
+            print('%d: * * *' % mid)
+            hi = mid
 
-print('>>> optimal MTU is %d + 28 = %d' % (lo, lo+28))
+    print('>>> optimal MTU is %d + 28 = %d' % (lo, lo+28))
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser(description='perform path MTU discovery')
+
+    p.add_argument('target',
+        help='IP address or hostname to ping')
+
+    p.add_argument('-l', metavar='MTU', dest='lo', type=int, default=0,
+        help='lower bound of the search range [0]')
+    p.add_argument('-u', metavar='MTU', dest='hi', type=int, default=1500,
+        help='upper bound of the search range [1500]')
+    p.add_argument('-c', metavar='COUNT', dest='pings_per_step', type=int, default=5,
+        help='pings per step [5]')
+    p.add_argument('-w', metavar='SECONDS', dest='step_timeout_sec', type=int, default=10,
+        help='step timeout [10]')
+    p.add_argument('-i', metavar='SECONDS', dest='ping_interval_sec', type=float, default=0.2,
+        help='ping interval [0.2]')
+
+    args = p.parse_args()
+    main(args)
