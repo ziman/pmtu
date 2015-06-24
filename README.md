@@ -21,7 +21,7 @@ $ ./pmtu example.com
 1450: 61.0 % packet loss
 1451: 54.0 % packet loss
 1452: 37.0 % packet loss
->>> optimal MTU is 1452 + 28 = 1480
+>>> optimal MTU: 1452 + 28 = 1480
 
 $ ip link set mtu 1480 dev wlan0
 ```

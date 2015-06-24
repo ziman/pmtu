@@ -34,10 +34,10 @@ def main(args):
             print('%d: * * *' % mid)
             hi = mid
 
-    print('>>> optimal MTU is %d + 28 = %d' % (lo, lo+28))
+    print('>>> optimal MTU: %d + 28 = %d' % (lo, lo+28))
 
 if __name__ == '__main__':
-    p = argparse.ArgumentParser(description='perform path MTU discovery')
+    p = argparse.ArgumentParser(description='Perform path MTU discovery.')
 
     p.add_argument('target',
         help='IP address or hostname to ping')
