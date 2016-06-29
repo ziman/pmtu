@@ -9,7 +9,7 @@ import socket
 def main(args):
     lo = args.lo  # MTUs lower or equal do work
     hi = args.hi  # MTUs greater or equal don't work
-    print('>>> PMTU to %s in [%d, %d] range' % (args.target, lo, hi))
+    print('>>> PMTU to %s in [%d, %d) range' % (args.target, lo, hi))
 
     while lo + 1 < hi:
         mid = (lo + hi) // 2
@@ -69,6 +69,7 @@ def parse_args():
         addrinfo = [_ for _ in addrinfo if _[0] == socket.AF_INET]
         if not addrinfo:
             p.error('target has no IPv4 address')
+
     if args.ipv6:
         addrinfo = [_ for _ in addrinfo if _[0] == socket.AF_INET6]
         if not addrinfo:
