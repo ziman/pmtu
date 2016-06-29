@@ -4,17 +4,19 @@ import re
 import sys
 import subprocess
 import argparse
+import socket
 
 def main(args):
     lo = args.lo  # MTUs lower or equal do work
     hi = args.hi  # MTUs greater or equal don't work
+    print('>>> PMTU to %s in [%d, %d] range' % (args.target, lo, hi))
 
     while lo + 1 < hi:
         mid = (lo + hi) // 2
-        
+
         try:
             out = subprocess.check_output([
-                '/usr/bin/ping',
+                'ping' if args.ipv4 else 'ping6',
                 '-M', 'do',
                 '-c', str(args.pings_per_step),
                 '-w', str(args.step_timeout_sec),
@@ -34,14 +36,20 @@ def main(args):
             print('%d: * * *' % mid)
             hi = mid
 
-    print('>>> optimal MTU: %d + 28 = %d' % (lo, lo+28))
+    hsize = 28 if args.ipv4 else 48
+    print('>>> optimal MTU to %s: %d + %d = %d' % (args.target, lo, hsize, lo+hsize))
 
-if __name__ == '__main__':
+def parse_args():
     p = argparse.ArgumentParser(description='Perform path MTU discovery.')
 
     p.add_argument('target',
         help='IP address or hostname to ping')
 
+    group = p.add_mutually_exclusive_group()
+    group.add_argument('--ipv4', '-4', action='store_true', help='use IPv4')
+    group.add_argument('--ipv6', '-6', action='store_true', help='use IPv6')
+
+    # 68 or 576 for IPv4, 1280 for IPv6
     p.add_argument('-l', metavar='MTU', dest='lo', type=int, default=0,
         help='lower bound of the search range [%(default)s]')
     p.add_argument('-u', metavar='MTU', dest='hi', type=int, default=1500,
@@ -54,4 +62,35 @@ if __name__ == '__main__':
         help='ping interval [%(default)s]')
 
     args = p.parse_args()
-    main(args)
+
+    addrinfo = socket.getaddrinfo(args.target, 0, socket.AF_UNSPEC, socket.SOCK_DGRAM)
+
+    if args.ipv4:
+        addrinfo = [_ for _ in addrinfo if _[0] == socket.AF_INET]
+        if not addrinfo:
+            p.error('target has no IPv4 address')
+    if args.ipv6:
+        addrinfo = [_ for _ in addrinfo if _[0] == socket.AF_INET6]
+        if not addrinfo:
+            p.error('target has no IPv6 address')
+
+    for af, socktype, proto, _, sockaddr in addrinfo:
+        try:
+            # check route to the host using UDP connect()
+            s = socket.socket(af, socktype, proto)
+            s.connect(sockaddr)
+            s.close()
+            break
+        except Exception:
+            pass
+    else:
+        p.error('No routes to target')
+
+    args.ipv4 = (af == socket.AF_INET)
+    args.ipv6 = (af == socket.AF_INET6)
+    args.target = sockaddr[0]
+
+    return args
+
+if __name__ == '__main__':
+    main(parse_args())
