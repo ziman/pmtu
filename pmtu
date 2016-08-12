@@ -2,9 +2,29 @@
 
 import re
 import sys
+import time
 import subprocess
 import argparse
 import socket
+
+def ping_works(payload_size, args):
+    try:
+        # we capture the output to prevent ping
+        # from printing to terminal
+        _output = subprocess.check_output([
+            'ping' if args.ipv4 else 'ping6',
+            '-M', 'do',
+            '-c', '1',
+            '-w', str(args.step_timeout_sec),
+            '-n',
+            '-s', str(payload_size),
+            args.target,
+        ], stderr=subprocess.STDOUT).decode('utf8')
+
+        return True
+
+    except subprocess.CalledProcessError:
+        return False
 
 def main(args):
     lo = args.lo  # MTUs lower or equal do work
@@ -14,30 +34,28 @@ def main(args):
     while lo + 1 < hi:
         mid = (lo + hi) // 2
 
-        try:
-            out = subprocess.check_output([
-                'ping' if args.ipv4 else 'ping6',
-                '-M', 'do',
-                '-c', str(args.pings_per_step),
-                '-w', str(args.step_timeout_sec),
-                '-i', str(args.ping_interval_sec),
-                '-n',
-                '-s', str(mid),
-                args.target,
-            ], stderr=subprocess.STDOUT).decode('utf8')
+        sys.stdout.write('%d: ' % mid)
+        sys.stdout.flush()
 
-            match = re.search(r'(\d+)% packet loss', out)
-            packet_loss = float(match.group(1))
-
-            print('%d: %.1f %% packet loss' % (mid, packet_loss))
-            lo = mid
-
-        except subprocess.CalledProcessError:
-            print('%d: * * *' % mid)
+        for i in range(args.max_pings_per_step):
+            if ping_works(mid, args):
+                # ping went through, this payload size works
+                lo = mid
+                print('pong')
+                break
+            else:
+                sys.stdout.write('* ')
+                sys.stdout.flush()
+                time.sleep(args.ping_interval_sec)
+        else:
+            # all attempts failed, payload probably too big
             hi = mid
+            print('')
 
-    hsize = 28 if args.ipv4 else 48
-    print('>>> optimal MTU to %s: %d + %d = %d' % (args.target, lo, hsize, lo+hsize))
+    header_size = 28 if args.ipv4 else 48
+    print('>>> optimal MTU to %s: %d + %d = %d' % (
+        args.target, lo, header_size, lo+header_size
+    ))
 
 def parse_args():
     p = argparse.ArgumentParser(description='Perform path MTU discovery.')
@@ -54,8 +72,8 @@ def parse_args():
         help='lower bound of the search range [%(default)s]')
     p.add_argument('-u', metavar='MTU', dest='hi', type=int, default=1500,
         help='upper bound of the search range [%(default)s]')
-    p.add_argument('-c', metavar='COUNT', dest='pings_per_step', type=int, default=5,
-        help='pings per step [%(default)s]')
+    p.add_argument('-c', metavar='COUNT', dest='max_pings_per_step', type=int, default=5,
+        help='maximum number of pings per step [%(default)s]')
     p.add_argument('-w', metavar='SECONDS', dest='step_timeout_sec', type=int, default=10,
         help='step timeout [%(default)s]')
     p.add_argument('-i', metavar='SECONDS', dest='ping_interval_sec', type=float, default=0.2,
