@@ -103,7 +103,7 @@ def parse_args():
         except Exception:
             pass
     else:
-        p.error('No routes to target')
+        p.error('no routes to target')
 
     args.ipv4 = (af == socket.AF_INET)
     args.ipv6 = (af == socket.AF_INET6)
