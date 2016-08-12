@@ -29,7 +29,7 @@ def ping_works(payload_size, args):
 def main(args):
     lo = args.lo  # MTUs lower or equal do work
     hi = args.hi  # MTUs greater or equal don't work
-    print('>>> PMTU to %s in [%d, %d) range' % (args.target, lo, hi))
+    print('>>> PMTU to %s in range [%d, %d)' % (args.target, lo, hi))
 
     while lo + 1 < hi:
         mid = (lo + hi) // 2
