@@ -12,7 +12,8 @@ def ping_works(payload_size, args):
         # we capture the output to prevent ping
         # from printing to terminal
         _output = subprocess.check_output([
-            'ping' if args.ipv4 else 'ping6',
+            'ping',
+            '-4' if args.ipv4 else '-6',
             '-M', 'do',
             '-c', '1',
             '-w', str(args.step_timeout_sec),
